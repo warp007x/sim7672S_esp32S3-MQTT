@@ -4,9 +4,9 @@
 
 #define MODEM_RST            5
 #define MODEM_PWKEY          4
-#define MODEM_POWER_ON       23
 #define MODEM_TX             27
 #define MODEM_RX             26
+
 #define I2C_SDA              21
 #define I2C_SCL              22
 
@@ -14,15 +14,13 @@
 #define SerialMon Serial
 
 // Set serial for AT commands (to the module)
-// Use Hardware Serial on Mega, Leonardo, Micro
-#ifndef __AVR_ATmega328P__
-#define SerialAT Serial1
+
 
 // or Software Serial on Uno, Nano
-#else
+
 #include <SoftwareSerial.h>
-SoftwareSerial SerialAT(2, 3);  // RX, TX
-#endif
+EspSoftwareSerial::UART SerialAT;  // RX, TX
+
 
 // See all AT commands, if wanted
 // #define DUMP_AT_COMMANDS
@@ -49,7 +47,7 @@ SoftwareSerial SerialAT(2, 3);  // RX, TX
 #define GSM_PIN ""
 
 // Your GPRS credentials, if any
-const char apn[]      = "YourAPN";
+const char apn[]      = "";
 const char gprsUser[] = "";
 const char gprsPass[] = "";
 
@@ -136,43 +134,44 @@ void setup() {
   // Set console baud rate
   SerialMon.begin(115200);
   delay(10);
-
+  SerialAT.begin(115200, SWSERIAL_8N1, MODEM_TX, MODEM_RX, false);
+  if (!SerialAT) { // If the object did not initialize, then its configuration is invalid
+    Serial.println("Invalid EspSoftwareSerial pin configuration, check config"); 
+    while (1) { // Don't continue with invalid configuration
+      delay (1000);
+    }
+  }
+  SerialMon.println("Wait...");
+  delay(6000);
   pinMode(LED_PIN, OUTPUT);
   pinMode(MODEM_PWKEY, OUTPUT);
   pinMode(MODEM_RST, OUTPUT);
-  pinMode(MODEM_POWER_ON, OUTPUT);
+  // pinMode(MODEM_POWER_ON, OUTPUT);
   digitalWrite(MODEM_PWKEY, LOW);
-  digitalWrite(MODEM_RST, HIGH);
-  digitalWrite(MODEM_POWER_ON, HIGH);
+  digitalWrite(MODEM_RST, LOW);
+  delay(1000);
+  // digitalWrite(MODEM_POWER_ON, HIGH);
+  digitalWrite(MODEM_PWKEY, HIGH);
+    delay(1000);
+    digitalWrite(MODEM_PWKEY, LOW);
+    delay(1000);
+    // digitalWrite(MODEM_PWKEY, HIGH);
 
-  // !!!!!!!!!!!
-  // Set your reset, enable, power pins here
-  // !!!!!!!!!!!
-
-  SerialMon.println("Wait...");
-
-  // Set GSM module baud rate
-  TinyGsmAutoBaud(SerialAT, GSM_AUTOBAUD_MIN, GSM_AUTOBAUD_MAX);
-  // SerialAT.begin(9600);
-  delay(6000);
-
-  // Restart takes quite some time
-  // To skip it, call init() instead of restart()
+  // // Restart takes quite some time
+  // // To skip it, call init() instead of restart()
+  // SerialMon.println("Initializing modem...");
+  // if (!modem.init()) {
+  //   SerialMon.println("Failed to restart modem, delaying 10s and retrying");
+  //   return;
+  // }
   SerialMon.println("Initializing modem...");
-  if (!modem.init()) {
-    DBG("Failed to restart modem, delaying 10s and retrying");
-    return;
-  }
-  // Restart takes quite some time
-  // To skip it, call init() instead of restart()
-  DBG("Initializing modem...");
   if (!modem.restart()) {
-    DBG("Failed to restart modem, delaying 10s and retrying");
+    SerialMon.println("Failed to restart modem, delaying 10s and retrying");
     return;
   }
   // modem.restart();
   // modem.init();
-
+  delay(6000);
   String modemInfo = modem.getModemInfo();
   SerialMon.print("Modem Info: ");
   SerialMon.println(modemInfo);
